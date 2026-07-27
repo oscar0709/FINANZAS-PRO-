@@ -76,7 +76,7 @@
   .bar-cat{width:96px;flex:0 0 auto;font-size:12.5px;color:var(--ink-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .bar-track{flex:1;height:8px;background:var(--surface-2);border-radius:4px;overflow:hidden;}
   .bar-fill{height:100%;background:linear-gradient(90deg,var(--brass-dim),var(--brass));border-radius:4px;}
-  .bar-amt{width:76px;flex:0 0 auto;text-align:right;font-family:var(--mono);font-size:12.5px;color:var(--ink);font-variant-numeric:tabular-nums;}
+  .bar-amt{width:104px;flex:0 0 auto;text-align:right;font-family:var(--mono);font-size:11.5px;color:var(--ink);font-variant-numeric:tabular-nums;}
   .empty-note{color:var(--ink-faint);font-size:12.5px;padding:10px 2px;}
 
   .tx-list{display:flex;flex-direction:column;}
@@ -221,12 +221,21 @@
         </div>
       </div>
 
+      <label>Foto del recibo (opcional)</label>
+      <input type="file" id="fReceipt" accept="image/*" capture="environment">
+      <div id="receiptPreviewWrap" hidden style="margin-top:10px;position:relative;display:inline-block;">
+        <img id="receiptPreview" style="max-width:120px;border-radius:8px;border:1px solid var(--border);display:block;">
+        <button type="button" id="removeReceipt" style="position:absolute;top:-8px;right:-8px;background:var(--danger);color:#fff;border:none;border-radius:50%;width:22px;height:22px;font-size:12px;line-height:1;">✕</button>
+      </div>
+      <p id="receiptStatus" style="font-size:11px;color:var(--ink-faint);margin:6px 0 0;"></p>
+
       <button class="save-btn" id="saveBtn">Guardar gasto</button>
     </div>
   </header>
 
   <section>
-    <p class="sec-title">Por categoría</p>
+    <p class="sec-title">Dashboard por categoría</p>
+    <div class="backup-box" id="topCatCard" style="padding:16px;margin-bottom:14px;"></div>
     <div class="bars" id="catBars"></div>
   </section>
 
@@ -417,7 +426,8 @@ function subscribeToUserData(uid){
         category: data.category,
         payment: data.payment,
         date: data.date,
-        note: data.note || ""
+        note: data.note || "",
+        receipt: data.receipt || null
       };
     });
     render();
@@ -477,9 +487,29 @@ function render(){
   document.getElementById("totalAmount").innerHTML = "$" + intPart + '<span class="cents">.' + totalParts[1] + "</span>";
   document.getElementById("txCount").textContent = list.length + (list.length === 1 ? " gasto" : " gastos");
 
+  renderTopCategoryCard(list);
   renderBars("catBars", list, "category");
   renderBars("payBars", list, "payment");
   renderTxList(list);
+}
+
+function renderTopCategoryCard(list){
+  var card = document.getElementById("topCatCard");
+  if(list.length === 0){
+    card.innerHTML = '<p class="empty-note" style="padding:0;">Agrega gastos para ver tu categoría principal del mes.</p>';
+    return;
+  }
+  var sums = {};
+  var total = 0;
+  list.forEach(function(e){ sums[e.category] = (sums[e.category]||0) + e.amount; total += e.amount; });
+  var entries = Object.keys(sums).map(function(k){ return [k, sums[k]]; });
+  entries.sort(function(a,b){ return b[1]-a[1]; });
+  var top = entries[0];
+  var pct = total > 0 ? Math.round(top[1]/total*100) : 0;
+  card.innerHTML =
+    '<p class="backup-desc" style="margin:0 0 6px;">Categoría principal este mes</p>'+
+    '<p style="font-family:var(--serif);font-size:17px;color:var(--brass);margin:0 0 4px;">'+escapeHtml(top[0])+'</p>'+
+    '<p style="font-family:var(--mono);font-size:13px;color:var(--ink-muted);margin:0;">'+fmtMoney(top[1])+' · '+pct+'% del gasto total del mes</p>';
 }
 
 function renderBars(containerId, list, field){
@@ -490,19 +520,21 @@ function renderBars(containerId, list, field){
     return;
   }
   var sums = {};
-  list.forEach(function(e){ sums[e[field]] = (sums[e[field]] || 0) + e.amount; });
+  var grandTotal = 0;
+  list.forEach(function(e){ sums[e[field]] = (sums[e[field]] || 0) + e.amount; grandTotal += e.amount; });
   var entries = Object.keys(sums).map(function(k){ return [k, sums[k]]; });
   entries.sort(function(a,b){ return b[1]-a[1]; });
   var max = entries.length ? entries[0][1] : 1;
 
   entries.forEach(function(entry){
     var pct = max > 0 ? (entry[1]/max*100) : 0;
+    var sharePct = grandTotal > 0 ? Math.round(entry[1]/grandTotal*100) : 0;
     var row = document.createElement("div");
     row.className = "bar-row";
     row.innerHTML =
       '<div class="bar-cat">'+escapeHtml(entry[0])+'</div>'+
       '<div class="bar-track"><div class="bar-fill" style="width:'+pct+'%"></div></div>'+
-      '<div class="bar-amt">'+fmtMoney(entry[1])+'</div>';
+      '<div class="bar-amt">'+fmtMoney(entry[1])+' <span style="color:var(--ink-faint)">· '+sharePct+'%</span></div>';
     container.appendChild(row);
   });
 }
@@ -527,12 +559,16 @@ function renderTxList(list){
     }
     var row = document.createElement("div");
     row.className = "tx";
+    var receiptHtml = e.receipt
+      ? '<a href="'+e.receipt+'" target="_blank" rel="noopener" style="flex:0 0 auto;font-size:15px;text-decoration:none;">🧾</a>'
+      : '';
     row.innerHTML =
       '<div class="tx-dot"></div>'+
       '<div class="tx-body">'+
         '<div class="tx-cat">'+escapeHtml(e.category)+'</div>'+
         '<div class="tx-sub">'+escapeHtml(e.payment)+(e.note ? " · " + escapeHtml(e.note) : "")+'</div>'+
       '</div>'+
+      receiptHtml+
       '<div class="tx-amt">'+fmtMoney(e.amount)+'</div>'+
       '<button class="tx-del" data-id="'+e.id+'">✕</button>';
     container.appendChild(row);
@@ -556,6 +592,69 @@ document.getElementById("prevMonth").addEventListener("click", function(){
 document.getElementById("nextMonth").addEventListener("click", function(){
   viewMonth++; if(viewMonth > 11){ viewMonth = 0; viewYear++; }
   render();
+});
+
+// ---------- RECEIPT PHOTO (compressed client-side to fit Firestore's 1MiB doc limit) ----------
+var pendingReceipt = null; // base64 data URL, or null
+
+function compressImage(file){
+  return new Promise(function(resolve, reject){
+    var reader = new FileReader();
+    reader.onload = function(e){
+      var img = new Image();
+      img.onload = function(){
+        tryQuality([900, 0.7], [700, 0.55], [500, 0.4], [350, 0.3]);
+        function tryQuality(){
+          var attempts = Array.prototype.slice.call(arguments);
+          var i = 0;
+          function attempt(){
+            if(i >= attempts.length){ reject(new Error("No se pudo comprimir lo suficiente")); return; }
+            var maxDim = attempts[i][0], quality = attempts[i][1];
+            var w = img.width, h = img.height;
+            if(w > h && w > maxDim){ h = Math.round(h*maxDim/w); w = maxDim; }
+            else if(h >= w && h > maxDim){ w = Math.round(w*maxDim/h); h = maxDim; }
+            var canvas = document.createElement("canvas");
+            canvas.width = w; canvas.height = h;
+            canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+            var dataUrl = canvas.toDataURL("image/jpeg", quality);
+            if(dataUrl.length < 700000 || i === attempts.length - 1){
+              resolve(dataUrl);
+            } else {
+              i++; attempt();
+            }
+          }
+          attempt();
+        }
+      };
+      img.onerror = function(){ reject(new Error("No se pudo leer la imagen")); };
+      img.src = e.target.result;
+    };
+    reader.onerror = function(){ reject(new Error("No se pudo leer el archivo")); };
+    reader.readAsDataURL(file);
+  });
+}
+
+document.getElementById("fReceipt").addEventListener("change", async function(){
+  var file = this.files[0];
+  if(!file) return;
+  var status = document.getElementById("receiptStatus");
+  status.textContent = "Comprimiendo foto...";
+  try{
+    var dataUrl = await compressImage(file);
+    pendingReceipt = dataUrl;
+    document.getElementById("receiptPreview").src = dataUrl;
+    document.getElementById("receiptPreviewWrap").hidden = false;
+    status.textContent = "Lista (" + Math.round(dataUrl.length/1024) + " KB aprox.)";
+  }catch(err){
+    status.textContent = "No se pudo procesar la foto. Intenta con otra.";
+    pendingReceipt = null;
+  }
+});
+document.getElementById("removeReceipt").addEventListener("click", function(){
+  pendingReceipt = null;
+  document.getElementById("fReceipt").value = "";
+  document.getElementById("receiptPreviewWrap").hidden = true;
+  document.getElementById("receiptStatus").textContent = "";
 });
 
 // ---------- ADD-EXPENSE PANEL ----------
@@ -597,6 +696,10 @@ function openSheet(){
   document.getElementById("fAmount").value = "";
   document.getElementById("fNote").value = "";
   document.getElementById("fDate").value = new Date().toISOString().slice(0,10);
+  document.getElementById("fReceipt").value = "";
+  document.getElementById("receiptPreviewWrap").hidden = true;
+  document.getElementById("receiptStatus").textContent = "";
+  pendingReceipt = null;
   selectedCat = categories[0];
   selectedPay = paymentMethods[0];
   buildChips("catChips", categories, function(){return selectedCat;}, function(v){selectedCat=v;}, saveMeta);
@@ -621,9 +724,11 @@ document.getElementById("saveBtn").addEventListener("click", async function(){
   saveBtn.disabled = true;
   saveBtn.textContent = "Guardando...";
   try{
-    await addDoc(collection(db, "users", currentUser.uid, "expenses"), {
+    var payload = {
       amount: amount, category: selectedCat, payment: selectedPay, date: date, note: note
-    });
+    };
+    if(pendingReceipt) payload.receipt = pendingReceipt;
+    await addDoc(collection(db, "users", currentUser.uid, "expenses"), payload);
     var d = new Date(date + "T00:00:00");
     viewYear = d.getFullYear();
     viewMonth = d.getMonth();
