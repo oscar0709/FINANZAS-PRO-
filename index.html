@@ -11,7 +11,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon-180.png">
-<title>Finanzas PRO+ · Gastos</title>
+<title>Finanzas PRO+ · Gastos (sincronizado)</title>
 <style>
   :root{
     --bg:#14161a;
@@ -24,7 +24,7 @@
     --brass:#c7a542;
     --brass-dim:#8a7331;
     --outflow:#b5574a;
-    --outflow-dim:#3a2624;
+    --danger:#c0564a;
     --radius:14px;
     --serif: Georgia, 'Iowan Old Style', 'Palatino Linotype', serif;
     --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
@@ -34,12 +34,17 @@
   html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
     -webkit-font-smoothing:antialiased;overscroll-behavior-y:none;}
   body{padding-bottom:env(safe-area-inset-bottom);}
-  .app{max-width:520px;margin:0 auto;min-height:100vh;padding:0 18px 100px;}
+  .app{max-width:520px;margin:0 auto;min-height:100vh;padding:0 18px 60px;}
+  [hidden]{display:none !important;}
 
-  /* Header / ledger stamp */
+  /* Header */
   header{padding:calc(env(safe-area-inset-top) + 22px) 4px 18px;position:relative;}
+  .brand-row{display:flex;justify-content:space-between;align-items:flex-start;}
   .brand{font-family:var(--serif);font-size:15px;letter-spacing:.14em;text-transform:uppercase;color:var(--brass);margin:0 0 2px;}
   .brand-sub{font-size:11px;color:var(--ink-faint);letter-spacing:.08em;margin:0 0 20px;}
+  .sync-pill{font-size:10px;color:var(--ink-faint);border:1px solid var(--border);border-radius:20px;padding:4px 10px;white-space:nowrap;font-family:var(--mono);}
+  .sync-pill.online{color:#7fae8a;border-color:#3a4a3e;}
+  .sync-pill.offline{color:#c79a4a;border-color:#4a3f2b;}
   .perforation{height:1px;background-repeat:repeat-x;background-image:radial-gradient(circle,var(--border) 1.4px, transparent 1.6px);
     background-size:10px 1px;margin-bottom:20px;opacity:.9;}
 
@@ -55,7 +60,15 @@
   .month-label{font-size:12.5px;color:var(--ink-muted);text-transform:capitalize;min-width:96px;text-align:center;}
   .count-pill{font-size:11px;color:var(--ink-faint);font-family:var(--mono);}
 
-  /* Breakdown */
+  .add-trigger{width:100%;background:var(--brass);color:#1a1a1a;border:none;border-radius:12px;
+    padding:15px;font-size:15px;font-weight:600;font-family:var(--sans);margin-top:16px;}
+
+  .sheet{display:none;background:var(--surface);border:1px solid var(--border);
+    border-radius:var(--radius);padding:18px 18px 20px;margin-top:16px;}
+  .sheet.open{display:block;}
+  .sheet h2{font-family:var(--serif);font-size:16px;margin:0 0 16px;color:var(--ink);font-weight:normal;}
+  .sheet-close{float:right;background:none;border:none;color:var(--ink-faint);font-size:14px;}
+
   section{margin-top:26px;}
   .sec-title{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 12px;font-family:var(--serif);}
   .bars{display:flex;flex-direction:column;gap:10px;}
@@ -66,7 +79,6 @@
   .bar-amt{width:76px;flex:0 0 auto;text-align:right;font-family:var(--mono);font-size:12.5px;color:var(--ink);font-variant-numeric:tabular-nums;}
   .empty-note{color:var(--ink-faint);font-size:12.5px;padding:10px 2px;}
 
-  /* Transaction list */
   .tx-list{display:flex;flex-direction:column;}
   .tx-day{font-size:11px;color:var(--ink-faint);letter-spacing:.06em;text-transform:uppercase;margin:16px 0 8px;font-family:var(--mono);}
   .tx-day:first-child{margin-top:0;}
@@ -78,16 +90,6 @@
   .tx-amt{font-family:var(--mono);font-size:14px;color:var(--outflow);font-variant-numeric:tabular-nums;flex:0 0 auto;}
   .tx-del{background:none;border:none;color:var(--ink-faint);font-size:16px;padding:4px 2px 4px 8px;line-height:1;}
 
-  /* Add-expense trigger (in normal document flow, no fixed/overlay) */
-  .add-trigger{width:100%;background:var(--brass);color:#1a1a1a;border:none;border-radius:12px;
-    padding:15px;font-size:15px;font-weight:600;font-family:var(--sans);margin-top:16px;}
-
-  /* Inline expandable form panel (no fixed positioning, toggled via display) */
-  .sheet{display:none;background:var(--surface);border:1px solid var(--border);
-    border-radius:var(--radius);padding:18px 18px 20px;margin-top:16px;}
-  .sheet.open{display:block;}
-  .sheet h2{font-family:var(--serif);font-size:16px;margin:0 0 16px;color:var(--ink);font-weight:normal;}
-  .sheet-close{float:right;background:none;border:none;color:var(--ink-faint);font-size:14px;}
   label{display:block;font-size:11px;color:var(--ink-faint);letter-spacing:.06em;text-transform:uppercase;margin:14px 0 6px;}
   label:first-of-type{margin-top:0;}
   input,select,textarea{width:100%;background:var(--surface-2);border:1px solid var(--border);color:var(--ink);
@@ -104,10 +106,8 @@
   .row2 > div{flex:1;}
   .save-btn{width:100%;background:var(--brass);color:#1a1a1a;border:none;border-radius:12px;padding:14px;
     font-size:15px;font-weight:600;margin-top:22px;font-family:var(--sans);}
-  .manage-link{text-align:center;margin-top:14px;}
-  .manage-link button{background:none;border:none;color:var(--ink-faint);font-size:12px;text-decoration:underline;}
+  .save-btn[disabled]{opacity:.5;}
 
-  /* Backup box */
   .backup-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:6px 16px;}
   .backup-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0;}
   .backup-text{min-width:0;}
@@ -116,17 +116,67 @@
   .backup-btn{flex:0 0 auto;background:none;border:1px solid var(--brass-dim);color:var(--brass);
     border-radius:9px;padding:9px 14px;font-size:12.5px;font-family:var(--sans);white-space:nowrap;}
   .backup-divider{height:1px;background:var(--border);}
-  .backup-updated{font-size:11px;color:var(--ink-faint);text-align:center;margin:10px 0 4px;font-family:var(--mono);}
+
+  .account-row{display:flex;align-items:center;justify-content:space-between;background:var(--surface);
+    border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-top:16px;}
+  .account-email{font-size:12.5px;color:var(--ink-muted);font-family:var(--mono);word-break:break-all;}
+  .logout-btn{background:none;border:1px solid var(--border);color:var(--ink-faint);border-radius:9px;
+    padding:8px 12px;font-size:12px;flex:0 0 auto;margin-left:10px;}
+
+  /* Login screen */
+  .login-wrap{max-width:400px;margin:0 auto;padding:18px;min-height:100vh;display:flex;flex-direction:column;justify-content:center;}
+  .login-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:28px 22px;}
+  .login-brand{font-family:var(--serif);font-size:19px;color:var(--brass);text-align:center;margin:0 0 4px;letter-spacing:.04em;}
+  .login-sub{font-size:12px;color:var(--ink-faint);text-align:center;margin:0 0 26px;}
+  .login-tabs{display:flex;gap:8px;margin-bottom:18px;}
+  .login-tab{flex:1;background:none;border:1px solid var(--border);color:var(--ink-muted);border-radius:9px;padding:10px;font-size:13px;}
+  .login-tab.active{border-color:var(--brass);color:var(--brass);background:rgba(199,165,66,.08);}
+  .login-error{background:rgba(192,86,74,.12);border:1px solid var(--danger);color:#e2a89f;font-size:12px;
+    border-radius:8px;padding:10px 12px;margin-top:14px;line-height:1.4;}
+  .login-btn{width:100%;background:var(--brass);color:#1a1a1a;border:none;border-radius:12px;padding:14px;
+    font-size:15px;font-weight:600;margin-top:20px;font-family:var(--sans);}
+  .login-btn[disabled]{opacity:.5;}
+  .login-note{font-size:11px;color:var(--ink-faint);text-align:center;margin-top:16px;line-height:1.5;}
 
   ::-webkit-scrollbar{display:none;}
 </style>
 </head>
 <body>
-<div class="app">
+
+<!-- LOGIN SCREEN -->
+<div class="login-wrap" id="loginScreen">
+  <div class="login-card">
+    <p class="login-brand">Finanzas PRO+</p>
+    <p class="login-sub">Registro de gastos sincronizado</p>
+
+    <div class="login-tabs">
+      <button class="login-tab active" id="tabSignIn">Iniciar sesión</button>
+      <button class="login-tab" id="tabSignUp">Crear cuenta</button>
+    </div>
+
+    <label>Correo</label>
+    <input type="email" id="authEmail" inputmode="email" autocapitalize="off" autocorrect="off" placeholder="tucorreo@ejemplo.com">
+
+    <label>Contraseña</label>
+    <input type="password" id="authPass" placeholder="Mínimo 6 caracteres">
+
+    <button class="login-btn" id="authSubmit">Iniciar sesión</button>
+    <p class="login-error" id="authError" hidden></p>
+    <p class="login-note">Usa el mismo correo y contraseña en todos tus dispositivos para ver los mismos gastos en todos.</p>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div class="app" id="mainApp" hidden>
 
   <header>
-    <p class="brand">Finanzas PRO+</p>
-    <p class="brand-sub">Registro de gastos · sin conexión</p>
+    <div class="brand-row">
+      <div>
+        <p class="brand">Finanzas PRO+</p>
+        <p class="brand-sub">Registro de gastos · sincronizado</p>
+      </div>
+      <span class="sync-pill" id="syncPill">—</span>
+    </div>
     <div class="perforation"></div>
 
     <div class="stamp">
@@ -212,436 +262,498 @@
       <div class="backup-row">
         <div class="backup-text">
           <p class="backup-title">Restaurar desde CSV</p>
-          <p class="backup-desc">Recupera un respaldo o pásate de otro teléfono.</p>
+          <p class="backup-desc">Súbelo una vez y se sincroniza a todos tus dispositivos.</p>
         </div>
         <button class="backup-btn" id="restoreBtn">Restaurar</button>
       </div>
       <input type="file" id="restoreInput" accept=".csv,text/csv" style="display:none">
-      <p class="backup-updated" id="lastBackupNote"></p>
+    </div>
+  </section>
+
+  <section>
+    <div class="account-row">
+      <span class="account-email" id="accountEmail">—</span>
+      <button class="logout-btn" id="logoutBtn">Cerrar sesión</button>
     </div>
   </section>
 
 </div>
 
-<script>
-(function(){
-  "use strict";
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import {
+  getAuth, onAuthStateChanged, signInWithEmailAndPassword,
+  createUserWithEmailAndPassword, signOut
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+import {
+  getFirestore, collection, doc, addDoc, deleteDoc, setDoc, getDoc,
+  onSnapshot, writeBatch, enableIndexedDbPersistence
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import { firebaseConfig } from "./firebase-config.js";
 
-  var STORAGE_KEY = "finanzasProExpenses_v1";
-  var CATS_KEY = "finanzasProCats_v1";
-  var PAYS_KEY = "finanzasProPays_v1";
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+try { await enableIndexedDbPersistence(db); } catch(e){ /* multiple tabs or unsupported browser: sync will still work online */ }
 
-  var DEFAULT_CATS = ["Alimentación","Transporte","Servicios","Salud","Entretenimiento","Hogar","Otros"];
-  var DEFAULT_PAYS = ["Efectivo","Débito","Crédito","Transferencia"];
+const DEFAULT_CATS = ["Alimentación","Transporte","Servicios","Salud","Entretenimiento","Hogar","Otros"];
+const DEFAULT_PAYS = ["Efectivo","Débito","Crédito","Transferencia"];
+const MONTH_NAMES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+const DAY_NAMES = ["dom","lun","mar","mié","jue","vie","sáb"];
 
-  function load(key, fallback){
-    try{
-      var raw = localStorage.getItem(key);
-      return raw ? JSON.parse(raw) : fallback;
-    }catch(e){ return fallback; }
+let currentUser = null;
+let expenses = [];
+let categories = DEFAULT_CATS.slice();
+let paymentMethods = DEFAULT_PAYS.slice();
+let unsubExpenses = null;
+
+let today = new Date();
+let viewYear = today.getFullYear();
+let viewMonth = today.getMonth();
+let selectedCat = categories[0];
+let selectedPay = paymentMethods[0];
+
+// ---------- AUTH SCREEN ----------
+const loginScreen = document.getElementById("loginScreen");
+const mainApp = document.getElementById("mainApp");
+const tabSignIn = document.getElementById("tabSignIn");
+const tabSignUp = document.getElementById("tabSignUp");
+const authSubmit = document.getElementById("authSubmit");
+const authError = document.getElementById("authError");
+let authMode = "signin";
+
+function setAuthMode(mode){
+  authMode = mode;
+  tabSignIn.classList.toggle("active", mode === "signin");
+  tabSignUp.classList.toggle("active", mode === "signup");
+  authSubmit.textContent = mode === "signin" ? "Iniciar sesión" : "Crear cuenta";
+  authError.hidden = true;
+}
+tabSignIn.addEventListener("click", function(){ setAuthMode("signin"); });
+tabSignUp.addEventListener("click", function(){ setAuthMode("signup"); });
+
+function friendlyAuthError(code){
+  var map = {
+    "auth/invalid-email": "El correo no tiene un formato válido.",
+    "auth/missing-password": "Escribe una contraseña.",
+    "auth/weak-password": "La contraseña necesita al menos 6 caracteres.",
+    "auth/email-already-in-use": "Ese correo ya tiene una cuenta. Prueba \"Iniciar sesión\".",
+    "auth/invalid-credential": "Correo o contraseña incorrectos.",
+    "auth/wrong-password": "Contraseña incorrecta.",
+    "auth/user-not-found": "No existe una cuenta con ese correo. Prueba \"Crear cuenta\".",
+    "auth/too-many-requests": "Demasiados intentos. Espera un momento e intenta de nuevo.",
+    "auth/network-request-failed": "Sin conexión a internet. Intenta de nuevo cuando tengas señal."
+  };
+  return map[code] || "Ocurrió un error. Intenta de nuevo.";
+}
+
+authSubmit.addEventListener("click", async function(){
+  var email = document.getElementById("authEmail").value.trim();
+  var pass = document.getElementById("authPass").value;
+  authError.hidden = true;
+  if(!email || !pass){
+    authError.textContent = "Escribe tu correo y contraseña.";
+    authError.hidden = false;
+    return;
   }
-  function save(key, val){
-    try{ localStorage.setItem(key, JSON.stringify(val)); }catch(e){}
-  }
-
-  var expenses = load(STORAGE_KEY, []);
-  var categories = load(CATS_KEY, DEFAULT_CATS);
-  var paymentMethods = load(PAYS_KEY, DEFAULT_PAYS);
-
-  var today = new Date();
-  var viewYear = today.getFullYear();
-  var viewMonth = today.getMonth(); // 0-indexed
-
-  var selectedCat = categories[0];
-  var selectedPay = paymentMethods[0];
-
-  var MONTH_NAMES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
-  var DAY_NAMES = ["dom","lun","mar","mié","jue","vie","sáb"];
-
-  function fmtMoney(n){
-    var neg = n < 0;
-    n = Math.abs(n);
-    var parts = n.toFixed(2).split(".");
-    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-    return (neg?"-":"") + "$" + parts[0] + "." + parts[1];
-  }
-
-  function monthKey(y,m){ return y+"-"+String(m+1).padStart(2,"0"); }
-
-  function expensesForView(){
-    var mk = monthKey(viewYear, viewMonth);
-    return expenses.filter(function(e){ return e.date.slice(0,7) === mk; });
-  }
-
-  function render(){
-    document.getElementById("monthLabel").textContent = MONTH_NAMES[viewMonth] + " " + viewYear;
-
-    var list = expensesForView().slice().sort(function(a,b){ return b.date.localeCompare(a.date) || b.id - a.id; });
-
-    var total = list.reduce(function(s,e){ return s + e.amount; }, 0);
-    var totalParts = total.toFixed(2).split(".");
-    var intPart = totalParts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-    document.getElementById("totalAmount").innerHTML = "$" + intPart + '<span class="cents">.' + totalParts[1] + "</span>";
-    document.getElementById("txCount").textContent = list.length + (list.length === 1 ? " gasto" : " gastos");
-
-    renderBars("catBars", list, "category", categories);
-    renderBars("payBars", list, "payment", paymentMethods);
-    renderTxList(list);
-  }
-
-  function renderBars(containerId, list, field, allKeys){
-    var container = document.getElementById(containerId);
-    container.innerHTML = "";
-    if(list.length === 0){
-      container.innerHTML = '<p class="empty-note">Sin gastos registrados este mes todavía.</p>';
-      return;
+  authSubmit.disabled = true;
+  try{
+    if(authMode === "signin"){
+      await signInWithEmailAndPassword(auth, email, pass);
+    } else {
+      await createUserWithEmailAndPassword(auth, email, pass);
     }
-    var sums = {};
-    list.forEach(function(e){
-      sums[e[field]] = (sums[e[field]] || 0) + e.amount;
-    });
-    var entries = Object.keys(sums).map(function(k){ return [k, sums[k]]; });
-    entries.sort(function(a,b){ return b[1]-a[1]; });
-    var max = entries.length ? entries[0][1] : 1;
-
-    entries.forEach(function(entry){
-      var row = document.createElement("div");
-      row.className = "bar-row";
-      var pct = max > 0 ? (entry[1]/max*100) : 0;
-      row.innerHTML =
-        '<div class="bar-cat">'+escapeHtml(entry[0])+'</div>'+
-        '<div class="bar-track"><div class="bar-fill" style="width:'+pct+'%"></div></div>'+
-        '<div class="bar-amt">'+fmtMoney(entry[1])+'</div>';
-      container.appendChild(row);
-    });
+  }catch(err){
+    authError.textContent = friendlyAuthError(err.code);
+    authError.hidden = false;
   }
+  authSubmit.disabled = false;
+});
 
-  function renderTxList(list){
-    var container = document.getElementById("txList");
-    container.innerHTML = "";
-    if(list.length === 0){
-      container.innerHTML = '<p class="empty-note">Todavía no hay movimientos. Toca + para agregar el primero.</p>';
-      return;
-    }
-    var lastDay = null;
-    list.forEach(function(e){
-      if(e.date !== lastDay){
-        lastDay = e.date;
-        var d = new Date(e.date + "T00:00:00");
-        var label = DAY_NAMES[d.getDay()] + " " + d.getDate() + " " + MONTH_NAMES[d.getMonth()].slice(0,3);
-        var h = document.createElement("div");
-        h.className = "tx-day";
-        h.textContent = label;
-        container.appendChild(h);
-      }
-      var row = document.createElement("div");
-      row.className = "tx";
-      row.innerHTML =
-        '<div class="tx-dot"></div>'+
-        '<div class="tx-body">'+
-          '<div class="tx-cat">'+escapeHtml(e.category)+'</div>'+
-          '<div class="tx-sub">'+escapeHtml(e.payment)+(e.note ? " · " + escapeHtml(e.note) : "")+'</div>'+
-        '</div>'+
-        '<div class="tx-amt">'+fmtMoney(e.amount)+'</div>'+
-        '<button class="tx-del" data-id="'+e.id+'">✕</button>';
-      container.appendChild(row);
-    });
+document.getElementById("logoutBtn").addEventListener("click", function(){
+  signOut(auth);
+});
 
-    container.querySelectorAll(".tx-del").forEach(function(btn){
-      btn.addEventListener("click", function(){
-        var id = Number(btn.getAttribute("data-id"));
-        expenses = expenses.filter(function(e){ return e.id !== id; });
-        save(STORAGE_KEY, expenses);
-        render();
-      });
-    });
+// ---------- AUTH STATE ----------
+onAuthStateChanged(auth, function(user){
+  currentUser = user;
+  if(user){
+    loginScreen.hidden = true;
+    mainApp.hidden = false;
+    document.getElementById("accountEmail").textContent = user.email;
+    subscribeToUserData(user.uid);
+  } else {
+    if(unsubExpenses){ unsubExpenses(); unsubExpenses = null; }
+    expenses = [];
+    mainApp.hidden = true;
+    loginScreen.hidden = false;
   }
+});
 
-  function escapeHtml(s){
-    return String(s).replace(/[&<>"']/g, function(c){
-      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
-    });
+// ---------- ONLINE / OFFLINE PILL ----------
+function updateSyncPill(){
+  var pill = document.getElementById("syncPill");
+  if(navigator.onLine){
+    pill.textContent = "sincronizado";
+    pill.className = "sync-pill online";
+  } else {
+    pill.textContent = "sin conexión";
+    pill.className = "sync-pill offline";
   }
+}
+window.addEventListener("online", updateSyncPill);
+window.addEventListener("offline", updateSyncPill);
+updateSyncPill();
 
-  // Month nav
-  document.getElementById("prevMonth").addEventListener("click", function(){
-    viewMonth--;
-    if(viewMonth < 0){ viewMonth = 11; viewYear--; }
+// ---------- FIRESTORE SUBSCRIPTIONS ----------
+function subscribeToUserData(uid){
+  var expensesRef = collection(db, "users", uid, "expenses");
+  unsubExpenses = onSnapshot(expensesRef, function(snapshot){
+    expenses = snapshot.docs.map(function(d){
+      var data = d.data();
+      return {
+        id: d.id,
+        amount: data.amount,
+        category: data.category,
+        payment: data.payment,
+        date: data.date,
+        note: data.note || ""
+      };
+    });
     render();
-  });
-  document.getElementById("nextMonth").addEventListener("click", function(){
-    viewMonth++;
-    if(viewMonth > 11){ viewMonth = 0; viewYear++; }
-    render();
+  }, function(err){
+    console.error("Error de sincronización:", err);
   });
 
-  // Sheet handling
-  var sheet = document.getElementById("sheet");
-
-  function buildChips(containerId, items, selectedGetter, selectedSetter, storageKey, arrRef){
-    var container = document.getElementById(containerId);
-    container.innerHTML = "";
-    items.forEach(function(item){
-      var chip = document.createElement("button");
-      chip.type = "button";
-      chip.className = "chip" + (selectedGetter() === item ? " active" : "");
-      chip.textContent = item;
-      chip.addEventListener("click", function(){
-        selectedSetter(item);
-        container.querySelectorAll(".chip").forEach(function(c){ c.classList.remove("active"); });
-        chip.classList.add("active");
-      });
-      container.appendChild(chip);
-    });
-    var addChip = document.createElement("button");
-    addChip.type = "button";
-    addChip.className = "chip add-chip";
-    addChip.textContent = "+ nueva";
-    addChip.addEventListener("click", function(){
-      var name = prompt("Nombre nuevo:");
-      if(name && name.trim()){
-        name = name.trim();
-        if(items.indexOf(name) === -1){
-          items.push(name);
-          save(storageKey, items);
-        }
-        selectedSetter(name);
-        buildChips(containerId, items, selectedGetter, selectedSetter, storageKey, arrRef);
-      }
-    });
-    container.appendChild(addChip);
-  }
-
-  var addTrigger = document.getElementById("openAdd");
-
-  function openSheet(){
-    document.getElementById("fAmount").value = "";
-    document.getElementById("fNote").value = "";
-    document.getElementById("fDate").value = new Date().toISOString().slice(0,10);
+  var metaRef = doc(db, "users", uid, "settings", "meta");
+  getDoc(metaRef).then(function(snap){
+    if(snap.exists()){
+      var data = snap.data();
+      if(Array.isArray(data.categories) && data.categories.length) categories = data.categories;
+      if(Array.isArray(data.paymentMethods) && data.paymentMethods.length) paymentMethods = data.paymentMethods;
+    } else {
+      setDoc(metaRef, { categories: categories, paymentMethods: paymentMethods });
+    }
     selectedCat = categories[0];
     selectedPay = paymentMethods[0];
-    buildChips("catChips", categories, function(){return selectedCat;}, function(v){selectedCat=v;}, CATS_KEY);
-    buildChips("payChips", paymentMethods, function(){return selectedPay;}, function(v){selectedPay=v;}, PAYS_KEY);
-    sheet.classList.add("open");
-    addTrigger.style.display = "none";
-    sheet.scrollIntoView({block:"start", behavior:"smooth"});
-  }
-  function closeSheet(){
-    sheet.classList.remove("open");
-    addTrigger.style.display = "";
-  }
+  });
+}
 
-  addTrigger.addEventListener("click", openSheet);
-  document.getElementById("closeSheet").addEventListener("click", closeSheet);
+function saveMeta(){
+  if(!currentUser) return;
+  setDoc(doc(db, "users", currentUser.uid, "settings", "meta"), {
+    categories: categories,
+    paymentMethods: paymentMethods
+  });
+}
 
-  document.getElementById("saveBtn").addEventListener("click", function(){
-    var amount = parseFloat(document.getElementById("fAmount").value);
-    if(!amount || amount <= 0){
-      document.getElementById("fAmount").focus();
-      return;
+// ---------- HELPERS ----------
+function fmtMoney(n){
+  var neg = n < 0;
+  n = Math.abs(n);
+  var parts = n.toFixed(2).split(".");
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return (neg?"-":"") + "$" + parts[0] + "." + parts[1];
+}
+function monthKey(y,m){ return y+"-"+String(m+1).padStart(2,"0"); }
+function expensesForView(){
+  var mk = monthKey(viewYear, viewMonth);
+  return expenses.filter(function(e){ return e.date.slice(0,7) === mk; });
+}
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, function(c){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+  });
+}
+
+// ---------- RENDER ----------
+function render(){
+  document.getElementById("monthLabel").textContent = MONTH_NAMES[viewMonth] + " " + viewYear;
+  var list = expensesForView().slice().sort(function(a,b){ return b.date.localeCompare(a.date); });
+
+  var total = list.reduce(function(s,e){ return s + e.amount; }, 0);
+  var totalParts = total.toFixed(2).split(".");
+  var intPart = totalParts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  document.getElementById("totalAmount").innerHTML = "$" + intPart + '<span class="cents">.' + totalParts[1] + "</span>";
+  document.getElementById("txCount").textContent = list.length + (list.length === 1 ? " gasto" : " gastos");
+
+  renderBars("catBars", list, "category");
+  renderBars("payBars", list, "payment");
+  renderTxList(list);
+}
+
+function renderBars(containerId, list, field){
+  var container = document.getElementById(containerId);
+  container.innerHTML = "";
+  if(list.length === 0){
+    container.innerHTML = '<p class="empty-note">Sin gastos registrados este mes todavía.</p>';
+    return;
+  }
+  var sums = {};
+  list.forEach(function(e){ sums[e[field]] = (sums[e[field]] || 0) + e.amount; });
+  var entries = Object.keys(sums).map(function(k){ return [k, sums[k]]; });
+  entries.sort(function(a,b){ return b[1]-a[1]; });
+  var max = entries.length ? entries[0][1] : 1;
+
+  entries.forEach(function(entry){
+    var pct = max > 0 ? (entry[1]/max*100) : 0;
+    var row = document.createElement("div");
+    row.className = "bar-row";
+    row.innerHTML =
+      '<div class="bar-cat">'+escapeHtml(entry[0])+'</div>'+
+      '<div class="bar-track"><div class="bar-fill" style="width:'+pct+'%"></div></div>'+
+      '<div class="bar-amt">'+fmtMoney(entry[1])+'</div>';
+    container.appendChild(row);
+  });
+}
+
+function renderTxList(list){
+  var container = document.getElementById("txList");
+  container.innerHTML = "";
+  if(list.length === 0){
+    container.innerHTML = '<p class="empty-note">Todavía no hay movimientos. Toca "+ Agregar gasto".</p>';
+    return;
+  }
+  var lastDay = null;
+  list.forEach(function(e){
+    if(e.date !== lastDay){
+      lastDay = e.date;
+      var d = new Date(e.date + "T00:00:00");
+      var label = DAY_NAMES[d.getDay()] + " " + d.getDate() + " " + MONTH_NAMES[d.getMonth()].slice(0,3);
+      var h = document.createElement("div");
+      h.className = "tx-day";
+      h.textContent = label;
+      container.appendChild(h);
     }
-    var date = document.getElementById("fDate").value || new Date().toISOString().slice(0,10);
-    var note = document.getElementById("fNote").value.trim();
+    var row = document.createElement("div");
+    row.className = "tx";
+    row.innerHTML =
+      '<div class="tx-dot"></div>'+
+      '<div class="tx-body">'+
+        '<div class="tx-cat">'+escapeHtml(e.category)+'</div>'+
+        '<div class="tx-sub">'+escapeHtml(e.payment)+(e.note ? " · " + escapeHtml(e.note) : "")+'</div>'+
+      '</div>'+
+      '<div class="tx-amt">'+fmtMoney(e.amount)+'</div>'+
+      '<button class="tx-del" data-id="'+e.id+'">✕</button>';
+    container.appendChild(row);
+  });
 
-    expenses.push({
-      id: Date.now(),
-      amount: amount,
-      category: selectedCat,
-      payment: selectedPay,
-      date: date,
-      note: note
+  container.querySelectorAll(".tx-del").forEach(function(btn){
+    btn.addEventListener("click", async function(){
+      var id = btn.getAttribute("data-id");
+      try{
+        await deleteDoc(doc(db, "users", currentUser.uid, "expenses", id));
+      }catch(e){ alert("No se pudo eliminar. Revisa tu conexión."); }
     });
-    save(STORAGE_KEY, expenses);
+  });
+}
 
+// ---------- MONTH NAV ----------
+document.getElementById("prevMonth").addEventListener("click", function(){
+  viewMonth--; if(viewMonth < 0){ viewMonth = 11; viewYear--; }
+  render();
+});
+document.getElementById("nextMonth").addEventListener("click", function(){
+  viewMonth++; if(viewMonth > 11){ viewMonth = 0; viewYear++; }
+  render();
+});
+
+// ---------- ADD-EXPENSE PANEL ----------
+var sheet = document.getElementById("sheet");
+var addTrigger = document.getElementById("openAdd");
+
+function buildChips(containerId, items, selectedGetter, selectedSetter, onNewItem){
+  var container = document.getElementById(containerId);
+  container.innerHTML = "";
+  items.forEach(function(item){
+    var chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "chip" + (selectedGetter() === item ? " active" : "");
+    chip.textContent = item;
+    chip.addEventListener("click", function(){
+      selectedSetter(item);
+      container.querySelectorAll(".chip").forEach(function(c){ c.classList.remove("active"); });
+      chip.classList.add("active");
+    });
+    container.appendChild(chip);
+  });
+  var addChip = document.createElement("button");
+  addChip.type = "button";
+  addChip.className = "chip add-chip";
+  addChip.textContent = "+ nueva";
+  addChip.addEventListener("click", function(){
+    var name = prompt("Nombre nuevo:");
+    if(name && name.trim()){
+      name = name.trim();
+      if(items.indexOf(name) === -1){ items.push(name); onNewItem(); }
+      selectedSetter(name);
+      buildChips(containerId, items, selectedGetter, selectedSetter, onNewItem);
+    }
+  });
+  container.appendChild(addChip);
+}
+
+function openSheet(){
+  document.getElementById("fAmount").value = "";
+  document.getElementById("fNote").value = "";
+  document.getElementById("fDate").value = new Date().toISOString().slice(0,10);
+  selectedCat = categories[0];
+  selectedPay = paymentMethods[0];
+  buildChips("catChips", categories, function(){return selectedCat;}, function(v){selectedCat=v;}, saveMeta);
+  buildChips("payChips", paymentMethods, function(){return selectedPay;}, function(v){selectedPay=v;}, saveMeta);
+  sheet.classList.add("open");
+  addTrigger.style.display = "none";
+  sheet.scrollIntoView({block:"start", behavior:"smooth"});
+}
+function closeSheet(){
+  sheet.classList.remove("open");
+  addTrigger.style.display = "";
+}
+addTrigger.addEventListener("click", openSheet);
+document.getElementById("closeSheet").addEventListener("click", closeSheet);
+
+document.getElementById("saveBtn").addEventListener("click", async function(){
+  var amount = parseFloat(document.getElementById("fAmount").value);
+  if(!amount || amount <= 0){ document.getElementById("fAmount").focus(); return; }
+  var date = document.getElementById("fDate").value || new Date().toISOString().slice(0,10);
+  var note = document.getElementById("fNote").value.trim();
+  var saveBtn = document.getElementById("saveBtn");
+  saveBtn.disabled = true;
+  saveBtn.textContent = "Guardando...";
+  try{
+    await addDoc(collection(db, "users", currentUser.uid, "expenses"), {
+      amount: amount, category: selectedCat, payment: selectedPay, date: date, note: note
+    });
     var d = new Date(date + "T00:00:00");
     viewYear = d.getFullYear();
     viewMonth = d.getMonth();
-
     closeSheet();
-    render();
-  });
+  }catch(e){
+    alert("No se pudo guardar. Si estás sin conexión, se guardará en cuanto vuelva la señal.");
+    closeSheet();
+  }
+  saveBtn.disabled = false;
+  saveBtn.textContent = "Guardar gasto";
+});
 
-  // ---- CSV helpers ----
-  function toCsv(list){
-    var rows = [["Fecha","Categoría","Método de pago","Monto","Nota","ID"]];
-    list.forEach(function(e){
-      rows.push([e.date, e.category, e.payment, e.amount.toFixed(2), e.note || "", e.id]);
+// ---------- CSV BACKUP / RESTORE ----------
+function toCsv(list){
+  var rows = [["Fecha","Categoría","Método de pago","Monto","Nota"]];
+  list.forEach(function(e){ rows.push([e.date, e.category, e.payment, e.amount.toFixed(2), e.note || ""]); });
+  return rows.map(function(r){
+    return r.map(function(cell){
+      var s = String(cell).replace(/"/g,'""');
+      return /[",\n]/.test(s) ? '"'+s+'"' : s;
+    }).join(",");
+  }).join("\n");
+}
+function downloadCsv(csv, filename){
+  var blob = new Blob([csv], {type:"text/csv;charset=utf-8;"});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+}
+function parseCsv(text){
+  var rows = [], row = [], field = "", inQuotes = false;
+  text = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  for(var i=0;i<text.length;i++){
+    var c = text[i];
+    if(inQuotes){
+      if(c === '"'){ if(text[i+1] === '"'){ field += '"'; i++; } else { inQuotes = false; } }
+      else field += c;
+    } else {
+      if(c === '"') inQuotes = true;
+      else if(c === ","){ row.push(field); field = ""; }
+      else if(c === "\n"){ row.push(field); rows.push(row); row = []; field = ""; }
+      else field += c;
+    }
+  }
+  if(field.length || row.length){ row.push(field); rows.push(row); }
+  return rows.filter(function(r){ return r.length > 1 || (r.length===1 && r[0] !== ""); });
+}
+
+document.getElementById("exportBtn").addEventListener("click", function(){
+  var list = expensesForView().slice().sort(function(a,b){ return a.date.localeCompare(b.date); });
+  if(list.length === 0){ alert("No hay gastos este mes para exportar."); return; }
+  downloadCsv(toCsv(list), "gastos_" + monthKey(viewYear, viewMonth) + ".csv");
+});
+
+document.getElementById("backupAllBtn").addEventListener("click", function(){
+  if(expenses.length === 0){ alert("Todavía no hay gastos registrados para respaldar."); return; }
+  var list = expenses.slice().sort(function(a,b){ return a.date.localeCompare(b.date); });
+  downloadCsv(toCsv(list), "respaldo_finanzas_" + new Date().toISOString().slice(0,10) + ".csv");
+});
+
+var restoreInput = document.getElementById("restoreInput");
+document.getElementById("restoreBtn").addEventListener("click", function(){
+  restoreInput.value = "";
+  restoreInput.click();
+});
+restoreInput.addEventListener("change", function(){
+  var file = restoreInput.files[0];
+  if(!file) return;
+  var reader = new FileReader();
+  reader.onload = async function(){
+    var rows;
+    try{ rows = parseCsv(String(reader.result)); }
+    catch(err){ alert("No se pudo leer el archivo."); return; }
+    if(rows.length < 2){ alert("El archivo no tiene datos que importar."); return; }
+
+    var dataRows = rows.slice(1);
+    var toImport = [];
+    dataRows.forEach(function(r){
+      var date = (r[0]||"").trim();
+      var category = (r[1]||"Otros").trim();
+      var payment = (r[2]||"Efectivo").trim();
+      var amount = parseFloat(r[3]);
+      var note = (r[4]||"").trim();
+      if(!date || !amount || amount <= 0) return;
+      toImport.push({date:date, category:category, payment:payment, amount:amount, note:note});
+      if(categories.indexOf(category) === -1) categories.push(category);
+      if(paymentMethods.indexOf(payment) === -1) paymentMethods.push(payment);
     });
-    return rows.map(function(r){
-      return r.map(function(cell){
-        var s = String(cell).replace(/"/g,'""');
-        return /[",\n]/.test(s) ? '"'+s+'"' : s;
-      }).join(",");
-    }).join("\n");
-  }
+    if(toImport.length === 0){ alert("No se encontraron filas válidas."); return; }
 
-  function downloadCsv(csv, filename){
-    var blob = new Blob([csv], {type:"text/csv;charset=utf-8;"});
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
-  }
+    var existingSignatures = {};
+    expenses.forEach(function(e){
+      existingSignatures[[e.date,e.amount,e.category,e.payment,e.note].join("|")] = true;
+    });
+    var newOnes = toImport.filter(function(e){
+      var sig = [e.date,e.amount,e.category,e.payment,e.note].join("|");
+      return !existingSignatures[sig];
+    });
 
-  // Minimal CSV parser supporting quoted fields with commas/newlines
-  function parseCsv(text){
-    var rows = [];
-    var row = [];
-    var field = "";
-    var inQuotes = false;
-    text = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-    for(var i=0; i<text.length; i++){
-      var c = text[i];
-      if(inQuotes){
-        if(c === '"'){
-          if(text[i+1] === '"'){ field += '"'; i++; }
-          else{ inQuotes = false; }
-        } else {
-          field += c;
-        }
-      } else {
-        if(c === '"'){ inQuotes = true; }
-        else if(c === ","){ row.push(field); field = ""; }
-        else if(c === "\n"){ row.push(field); rows.push(row); row = []; field = ""; }
-        else{ field += c; }
-      }
-    }
-    if(field.length || row.length){ row.push(field); rows.push(row); }
-    return rows.filter(function(r){ return r.length > 1 || (r.length===1 && r[0] !== ""); });
-  }
+    if(newOnes.length === 0){ alert("Todos esos gastos ya estaban registrados."); return; }
 
-  function setLastBackupNote(){
-    var ts = load("finanzasProLastBackup_v1", null);
-    var note = document.getElementById("lastBackupNote");
-    note.textContent = ts ? ("Último respaldo: " + new Date(ts).toLocaleString("es-MX")) : "Sin respaldos todavía";
-  }
+    var proceed = confirm("Se importarán " + newOnes.length + " gastos nuevos (se combinan con lo que ya tienes, sin duplicar). ¿Continuar?");
+    if(!proceed) return;
 
-  // Export current month
-  document.getElementById("exportBtn").addEventListener("click", function(){
-    var list = expensesForView().slice().sort(function(a,b){ return a.date.localeCompare(b.date); });
-    if(list.length === 0){
-      alert("No hay gastos este mes para exportar.");
-      return;
-    }
-    downloadCsv(toCsv(list), "gastos_" + monthKey(viewYear, viewMonth) + ".csv");
-  });
-
-  // Full backup — every expense, all time
-  document.getElementById("backupAllBtn").addEventListener("click", function(){
-    if(expenses.length === 0){
-      alert("Todavía no hay gastos registrados para respaldar.");
-      return;
-    }
-    var list = expenses.slice().sort(function(a,b){ return a.date.localeCompare(b.date); });
-    var stamp = new Date().toISOString().slice(0,10);
-    downloadCsv(toCsv(list), "respaldo_finanzas_" + stamp + ".csv");
-    save("finanzasProLastBackup_v1", Date.now());
-    setLastBackupNote();
-  });
-
-  // Restore from CSV
-  var restoreInput = document.getElementById("restoreInput");
-  document.getElementById("restoreBtn").addEventListener("click", function(){
-    restoreInput.value = "";
-    restoreInput.click();
-  });
-
-  restoreInput.addEventListener("change", function(){
-    var file = restoreInput.files[0];
-    if(!file) return;
-    var reader = new FileReader();
-    reader.onload = function(){
-      var rows;
-      try{
-        rows = parseCsv(String(reader.result));
-      }catch(err){
-        alert("No se pudo leer el archivo. Verifica que sea un CSV válido.");
-        return;
-      }
-      if(rows.length < 2){
-        alert("El archivo no tiene datos que importar.");
-        return;
-      }
-      // Skip header row
-      var dataRows = rows.slice(1);
-      var imported = [];
-      var usedIds = {};
-      expenses.forEach(function(e){ usedIds[e.id] = true; });
-
-      dataRows.forEach(function(r){
-        var date = (r[0] || "").trim();
-        var category = (r[1] || "Otros").trim();
-        var payment = (r[2] || "Efectivo").trim();
-        var amount = parseFloat(r[3]);
-        var note = (r[4] || "").trim();
-        var idFromFile = r[5] ? Number(r[5]) : null;
-        if(!date || !amount || amount <= 0) return;
-
-        var id = (idFromFile && !usedIds[idFromFile]) ? idFromFile : Date.now() + Math.floor(Math.random()*100000);
-        usedIds[id] = true;
-
-        imported.push({ id:id, amount:amount, category:category, payment:payment, date:date, note:note });
-
-        if(categories.indexOf(category) === -1) categories.push(category);
-        if(paymentMethods.indexOf(payment) === -1) paymentMethods.push(payment);
+    try{
+      var batch = writeBatch(db);
+      var col = collection(db, "users", currentUser.uid, "expenses");
+      newOnes.forEach(function(e){
+        var ref = doc(col);
+        batch.set(ref, e);
       });
+      await batch.commit();
+      saveMeta();
+      alert("Listo. " + newOnes.length + " gastos importados y sincronizados.");
+    }catch(e){
+      alert("No se pudo restaurar. Revisa tu conexión e intenta de nuevo.");
+    }
+  };
+  reader.readAsText(file, "utf-8");
+});
 
-      if(imported.length === 0){
-        alert("No se encontraron filas válidas en el archivo.");
-        return;
-      }
+render();
 
-      var mergeChoice = confirm(
-        "Se encontraron " + imported.length + " gastos en el archivo.\n\n" +
-        "Aceptar = combinar con tus datos actuales (recomendado).\n" +
-        "Cancelar = reemplazar todo lo que tienes ahora por este respaldo."
-      );
-
-      if(mergeChoice){
-        // Merge: avoid exact duplicates (same date+amount+category+payment+note)
-        var existingSignatures = {};
-        expenses.forEach(function(e){
-          existingSignatures[[e.date,e.amount,e.category,e.payment,e.note].join("|")] = true;
-        });
-        imported.forEach(function(e){
-          var sig = [e.date,e.amount,e.category,e.payment,e.note].join("|");
-          if(!existingSignatures[sig]){
-            expenses.push(e);
-            existingSignatures[sig] = true;
-          }
-        });
-      } else {
-        expenses = imported;
-      }
-
-      save(STORAGE_KEY, expenses);
-      save(CATS_KEY, categories);
-      save(PAYS_KEY, paymentMethods);
-
-      var lastDate = imported.slice().sort(function(a,b){return a.date.localeCompare(b.date);}).pop().date;
-      var d = new Date(lastDate + "T00:00:00");
-      viewYear = d.getFullYear();
-      viewMonth = d.getMonth();
-
-      render();
-      alert("Restauración completa. " + imported.length + " gastos procesados.");
-    };
-    reader.readAsText(file, "utf-8");
+if("serviceWorker" in navigator){
+  window.addEventListener("load", function(){
+    navigator.serviceWorker.register("sw.js").catch(function(){});
   });
-
-  setLastBackupNote();
-  render();
-
-  if("serviceWorker" in navigator){
-    window.addEventListener("load", function(){
-      navigator.serviceWorker.register("sw.js").catch(function(){});
-    });
-  }
-})();
+}
 </script>
 </body>
 </html>
